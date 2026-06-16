@@ -1,4 +1,3 @@
-<script type="text/javascript">
 (function(){
   var KPK="WbDH26";
   var KLI="R8VLFs";
@@ -20,7 +19,6 @@
     var cb=d.createElement("input");
     cb.type="checkbox";
     cb.id="dc-cb";
-    // Força tamanho via JS depois do append
     var sp=d.createElement("span");
     sp.style.cssText="font-size:12px;color:#444;line-height:1.5";
     sp.textContent="Quero receber rastreamento do pedido e ofertas exclusivas da Dal Cotone via WhatsApp.";
@@ -40,7 +38,6 @@
     w.appendChild(bt);
     w.appendChild(mg);
     a.parentNode.insertBefore(w,a.nextSibling);
-    // Força tamanho do checkbox via setAttribute depois de inserido no DOM
     cb.setAttribute("style","width:16px!important;height:16px!important;min-width:16px!important;max-width:16px!important;min-height:16px!important;max-height:16px!important;padding:0!important;margin:0!important;border-radius:3px!important;cursor:pointer!important;flex-shrink:0!important;-webkit-appearance:checkbox!important;appearance:checkbox!important");
     bt.addEventListener("click",function(e){
       e.preventDefault();
@@ -69,4 +66,3 @@
   if(document.readyState==="complete"||document.readyState==="interactive"){setTimeout(run,800);}
   else{window.addEventListener("load",function(){setTimeout(run,800);});}
 })();
-</script>
