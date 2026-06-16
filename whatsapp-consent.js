@@ -1,6 +1,14 @@
 (function(){
   var KPK="WbDH26";
   var KLI="R8VLFs";
+
+  function getEmail(){
+    // Tenta pegar email do texto da página "Você receberá um e-mail em XXXX"
+    var body = document.body.innerText || "";
+    var match = body.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
+    return match ? match[0] : "";
+  }
+
   function run(){
     var d=document;
     var a=d.querySelector(".holder-buttons")||d.querySelector(".inner-body");
@@ -39,6 +47,7 @@
     w.appendChild(mg);
     a.parentNode.insertBefore(w,a.nextSibling);
     cb.setAttribute("style","width:16px!important;height:16px!important;min-width:16px!important;max-width:16px!important;min-height:16px!important;max-height:16px!important;padding:0!important;margin:0!important;border-radius:3px!important;cursor:pointer!important;flex-shrink:0!important;-webkit-appearance:checkbox!important;appearance:checkbox!important");
+
     bt.addEventListener("click",function(e){
       e.preventDefault();
       var chk=d.getElementById("dc-cb");
@@ -46,23 +55,50 @@
       var b=d.getElementById("dc-btn");
       if(!chk.checked){m.style.display="block";m.style.color="#c0392b";m.textContent="Marque a caixa para confirmar.";return;}
       b.disabled=true;b.textContent="Enviando...";
-      var od=window.__YAMPI_ORDER__||window.yampiOrder||{};
-      var ph=(od.customer&&od.customer.phone)?od.customer.phone:"";
-      var em=(od.customer&&od.customer.email)?od.customer.email:"";
-      var oi=od.id||od.order_id||"";
-      var ip={token:KPK,properties:{$email:em,$phone_number:ph,whatsapp_consent:true,whatsapp_consent_date:new Date().toISOString(),whatsapp_consent_source:"pagina_obrigado_yampi",whatsapp_consent_order_id:String(oi)}};
-      fetch("https://a.klaviyo.com/api/identify",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+btoa(JSON.stringify(ip))}).then(function(){
-        var sv={token:KPK,list_id:KLI,profiles:[{email:em,phone_number:ph}]};
-        return fetch("https://a.klaviyo.com/api/subscribe",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+btoa(JSON.stringify(sv))});
-      }).then(function(){
-        m.style.display="block";m.style.color="#27ae60";m.textContent="Confirmado! Voce recebera atualizacoes via WhatsApp em breve.";
-        b.style.background="#27ae60";b.textContent="Confirmado";
+
+      var em=getEmail();
+      var urlId=window.location.pathname.split("/").pop()||"";
+
+      // Usa o endpoint /client/subscriptions que aceita CORS
+      var payload={
+        data:{
+          type:"subscription",
+          attributes:{
+            list_id:KLI,
+            email:em,
+            custom_source:"pagina_obrigado_yampi",
+            properties:{
+              whatsapp_consent:true,
+              whatsapp_consent_date:new Date().toISOString(),
+              whatsapp_consent_order_id:urlId
+            }
+          }
+        }
+      };
+
+      fetch("https://a.klaviyo.com/client/subscriptions/?company_id="+KPK,{
+        method:"POST",
+        headers:{"Content-Type":"application/json","revision":"2023-02-22"},
+        body:JSON.stringify(payload)
+      }).then(function(r){
+        m.style.display="block";
+        if(r.ok||r.status===202){
+          m.style.color="#27ae60";
+          m.textContent="Confirmado! Voce recebera atualizacoes via WhatsApp em breve.";
+          b.style.background="#27ae60";b.textContent="Confirmado";
+        } else {
+          m.style.color="#c0392b";
+          m.textContent="Erro ao confirmar. Tente novamente.";
+          b.disabled=false;b.textContent="Confirmar";
+        }
       }).catch(function(){
-        m.style.display="block";m.style.color="#c0392b";m.textContent="Erro. Tente novamente.";
+        m.style.display="block";m.style.color="#c0392b";
+        m.textContent="Erro. Tente novamente.";
         b.disabled=false;b.textContent="Confirmar";
       });
     });
   }
+
   if(document.readyState==="complete"||document.readyState==="interactive"){setTimeout(run,800);}
   else{window.addEventListener("load",function(){setTimeout(run,800);});}
 })();
