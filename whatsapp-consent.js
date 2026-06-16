@@ -1,6 +1,5 @@
 (function(){
   var KPK="WbDH26";
-  var KLI="R8VLFs";
 
   function getEmail(){
     var body=document.body.innerText||"";
@@ -58,52 +57,43 @@
       var em=getEmail();
       var urlId=window.location.pathname.split("/").pop()||"";
 
-      // Usa identify (aceita CORS) para salvar propriedades + adicionar à lista via profiles API
+      // API v3 do Klaviyo - cria/atualiza perfil com consentimento de WhatsApp
       var payload={
-        token:KPK,
-        properties:{
-          $email:em,
-          $consent:["email"],
-          whatsapp_consent:true,
-          whatsapp_consent_date:new Date().toISOString(),
-          whatsapp_consent_source:"pagina_obrigado_yampi",
-          whatsapp_consent_order_id:urlId
+        data:{
+          type:"profile",
+          attributes:{
+            email:em,
+            properties:{
+              whatsapp_consent:true,
+              whatsapp_consent_date:new Date().toISOString(),
+              whatsapp_consent_source:"pagina_obrigado_yampi",
+              whatsapp_consent_order_id:urlId
+            }
+          }
         }
       };
 
-      // Step 1: identify
-      fetch("https://a.klaviyo.com/api/identify",{
+      fetch("https://a.klaviyo.com/client/profiles/?company_id="+KPK,{
         method:"POST",
-        headers:{"Content-Type":"application/x-www-form-urlencoded"},
-        body:"data="+btoa(JSON.stringify(payload))
-      })
-      .then(function(){
-        // Step 2: subscribe direto na lista via track endpoint
-        var sub={
-          token:KPK,
-          event:"WhatsApp Consent",
-          customer_properties:{$email:em},
-          properties:{
-            list_id:KLI,
-            whatsapp_consent:true,
-            whatsapp_consent_date:new Date().toISOString(),
-            order_id:urlId
-          }
-        };
-        return fetch("https://a.klaviyo.com/api/track",{
-          method:"POST",
-          headers:{"Content-Type":"application/x-www-form-urlencoded"},
-          body:"data="+btoa(JSON.stringify(sub))
-        });
+        headers:{
+          "Content-Type":"application/json",
+          "revision":"2024-02-15"
+        },
+        body:JSON.stringify(payload)
       })
       .then(function(r){
-        m.style.display="block";
-        m.style.color="#27ae60";
-        m.textContent="Confirmado! Voce recebera atualizacoes via WhatsApp em breve.";
-        b.style.background="#27ae60";
-        b.textContent="Confirmado";
+        // 409 = perfil já existe, também é sucesso
+        if(r.ok||r.status===409||r.status===200||r.status===201){
+          m.style.display="block";
+          m.style.color="#27ae60";
+          m.textContent="Confirmado! Voce recebera atualizacoes via WhatsApp em breve.";
+          b.style.background="#27ae60";
+          b.textContent="Confirmado";
+        } else {
+          throw new Error("status "+r.status);
+        }
       })
-      .catch(function(){
+      .catch(function(err){
         m.style.display="block";m.style.color="#c0392b";
         m.textContent="Erro. Tente novamente.";
         b.disabled=false;b.textContent="Confirmar";
