@@ -3,10 +3,9 @@
   var KLI="R8VLFs";
 
   function getEmail(){
-    // Tenta pegar email do texto da página "Você receberá um e-mail em XXXX"
-    var body = document.body.innerText || "";
-    var match = body.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
-    return match ? match[0] : "";
+    var body=document.body.innerText||"";
+    var match=body.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
+    return match?match[0]:"";
   }
 
   function run(){
@@ -59,39 +58,52 @@
       var em=getEmail();
       var urlId=window.location.pathname.split("/").pop()||"";
 
-      // Usa o endpoint /client/subscriptions que aceita CORS
+      // Usa identify (aceita CORS) para salvar propriedades + adicionar à lista via profiles API
       var payload={
-        data:{
-          type:"subscription",
-          attributes:{
-            list_id:KLI,
-            email:em,
-            custom_source:"pagina_obrigado_yampi",
-            properties:{
-              whatsapp_consent:true,
-              whatsapp_consent_date:new Date().toISOString(),
-              whatsapp_consent_order_id:urlId
-            }
-          }
+        token:KPK,
+        properties:{
+          $email:em,
+          $consent:["email"],
+          whatsapp_consent:true,
+          whatsapp_consent_date:new Date().toISOString(),
+          whatsapp_consent_source:"pagina_obrigado_yampi",
+          whatsapp_consent_order_id:urlId
         }
       };
 
-      fetch("https://a.klaviyo.com/client/subscriptions/?company_id="+KPK,{
+      // Step 1: identify
+      fetch("https://a.klaviyo.com/api/identify",{
         method:"POST",
-        headers:{"Content-Type":"application/json","revision":"2023-02-22"},
-        body:JSON.stringify(payload)
-      }).then(function(r){
+        headers:{"Content-Type":"application/x-www-form-urlencoded"},
+        body:"data="+btoa(JSON.stringify(payload))
+      })
+      .then(function(){
+        // Step 2: subscribe direto na lista via track endpoint
+        var sub={
+          token:KPK,
+          event:"WhatsApp Consent",
+          customer_properties:{$email:em},
+          properties:{
+            list_id:KLI,
+            whatsapp_consent:true,
+            whatsapp_consent_date:new Date().toISOString(),
+            order_id:urlId
+          }
+        };
+        return fetch("https://a.klaviyo.com/api/track",{
+          method:"POST",
+          headers:{"Content-Type":"application/x-www-form-urlencoded"},
+          body:"data="+btoa(JSON.stringify(sub))
+        });
+      })
+      .then(function(r){
         m.style.display="block";
-        if(r.ok||r.status===202){
-          m.style.color="#27ae60";
-          m.textContent="Confirmado! Voce recebera atualizacoes via WhatsApp em breve.";
-          b.style.background="#27ae60";b.textContent="Confirmado";
-        } else {
-          m.style.color="#c0392b";
-          m.textContent="Erro ao confirmar. Tente novamente.";
-          b.disabled=false;b.textContent="Confirmar";
-        }
-      }).catch(function(){
+        m.style.color="#27ae60";
+        m.textContent="Confirmado! Voce recebera atualizacoes via WhatsApp em breve.";
+        b.style.background="#27ae60";
+        b.textContent="Confirmado";
+      })
+      .catch(function(){
         m.style.display="block";m.style.color="#c0392b";
         m.textContent="Erro. Tente novamente.";
         b.disabled=false;b.textContent="Confirmar";
