@@ -1,5 +1,6 @@
 (function(){
-  var KPK="WbDH26";
+  // URL do backend Vercel - SUBSTITUA pela sua URL apos o deploy
+  var BACKEND_URL="https://dalcotone-backend.vercel.app/api/consent";
 
   function getEmail(){
     var body=document.body.innerText||"";
@@ -20,6 +21,14 @@
     var de=d.createElement("p");
     de.style.cssText="font-size:12px;color:#888;margin:0 0 14px;line-height:1.6";
     de.textContent="Fique por dentro do rastreamento e receba ofertas exclusivas da Dal Cotone. Cancele respondendo SAIR.";
+
+    // Campo de telefone
+    var inp=d.createElement("input");
+    inp.type="tel";
+    inp.id="dc-phone";
+    inp.placeholder="Seu WhatsApp com DDD (ex: 11999998888)";
+    inp.style.cssText="width:100%;box-sizing:border-box;padding:10px 12px;font-size:13px;border:1px solid #e0c0ca;border-radius:8px;margin-bottom:14px;font-family:Arial,sans-serif;outline:none";
+
     var lb=d.createElement("label");
     lb.style.cssText="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:16px";
     var cb=d.createElement("input");
@@ -40,6 +49,7 @@
     mg.style.cssText="display:none;font-size:12px;text-align:center;margin-top:10px";
     w.appendChild(t);
     w.appendChild(de);
+    w.appendChild(inp);
     w.appendChild(lb);
     w.appendChild(bt);
     w.appendChild(mg);
@@ -49,51 +59,36 @@
     bt.addEventListener("click",function(e){
       e.preventDefault();
       var chk=d.getElementById("dc-cb");
+      var ph=d.getElementById("dc-phone").value.replace(/\D/g,"");
       var m=d.getElementById("dc-msg");
       var b=d.getElementById("dc-btn");
       if(!chk.checked){m.style.display="block";m.style.color="#c0392b";m.textContent="Marque a caixa para confirmar.";return;}
+      if(ph.length<10){m.style.display="block";m.style.color="#c0392b";m.textContent="Digite um WhatsApp valido com DDD.";return;}
       b.disabled=true;b.textContent="Enviando...";
 
       var em=getEmail();
       var urlId=window.location.pathname.split("/").pop()||"";
 
-      // API v3 do Klaviyo - cria/atualiza perfil com consentimento de WhatsApp
-      var payload={
-        data:{
-          type:"profile",
-          attributes:{
-            email:em,
-            properties:{
-              whatsapp_consent:true,
-              whatsapp_consent_date:new Date().toISOString(),
-              whatsapp_consent_source:"pagina_obrigado_yampi",
-              whatsapp_consent_order_id:urlId
-            }
-          }
-        }
-      };
-
-      fetch("https://a.klaviyo.com/client/profiles/?company_id="+KPK,{
+      fetch(BACKEND_URL,{
         method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          "revision":"2024-02-15"
-        },
-        body:JSON.stringify(payload)
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({email:em,phone:ph,order_id:urlId})
       })
-      .then(function(r){
-        // 409 = perfil já existe, também é sucesso
-        if(r.ok||r.status===409||r.status===200||r.status===201){
-          m.style.display="block";
+      .then(function(r){return r.json().then(function(j){return{ok:r.ok,body:j};});})
+      .then(function(res){
+        m.style.display="block";
+        if(res.ok&&res.body.success){
           m.style.color="#27ae60";
           m.textContent="Confirmado! Voce recebera atualizacoes via WhatsApp em breve.";
           b.style.background="#27ae60";
           b.textContent="Confirmado";
         } else {
-          throw new Error("status "+r.status);
+          m.style.color="#c0392b";
+          m.textContent="Erro ao confirmar. Tente novamente.";
+          b.disabled=false;b.textContent="Confirmar";
         }
       })
-      .catch(function(err){
+      .catch(function(){
         m.style.display="block";m.style.color="#c0392b";
         m.textContent="Erro. Tente novamente.";
         b.disabled=false;b.textContent="Confirmar";
